@@ -45,6 +45,12 @@
             (.assoc edit shift key1hash key1 val1 added-leaf)
             (.assoc edit shift key2hash key2 val2 added-leaf))))))
 
+(defn array-copy [array size length]
+  (let [new-array (make-array Object size)]
+    (do
+      (System/arraycopy array 0 new-array 0 length)
+      new-array)))
+
 (defn ->bin-assoc [node shift hash key val added-leaf]
   (let [bit (bitpos hash shift)
         idx (index node bit)
@@ -92,11 +98,10 @@
                                         added-leaf)))))
             (ArrayNode. nil (inc n) nodes))
           ; else <16
-          (let [new-array (make-array Object (* 2 (inc n)))
-                noop (System/arraycopy array 0 new-array 0 (* 2 idx))
+          (let [new-array (array-copy array (* 2 (inc n)) (* 2 idx))
                 noop (aset new-array (* 2 idx) key)
                 noop (.update added-leaf added-leaf)
-                noop (System/arraycopy array (* 2 idx)  new-array (* 2 (inc idx)) (* 2 (- n idx)))]
+                noop (System/arraycopy array (* 2 idx) new-array (* 2 (inc idx)) (* 2 (- n idx)))]
             (BitmapIndexedNode. nil (bit-or bitmap bit) new-array)))))))
 
 (extend BitmapIndexedNode
