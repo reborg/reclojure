@@ -1,20 +1,22 @@
 # reclojure
 
-Clojure in Clojure the hard way.
+Clojure in Clojure. Old style.
 
 ## What is this?
 
-Clojure has a quite complicated Java codebase (along with the Clojure side of it called standard library) and as any other Java out there, it can be translated into Clojure. The approach adopted in this project takes class by class, method by method, almost line by line translation of the Java side of Clojure into Clojure itself. This project will lead eventually to a very consistent translation.
+Clojure has a quite complicated Java codebase (along with the Clojure side of it called standard library) and as any other Java out there, it can be translated into Clojure. The approach adopted in this project takes class by class, method by method, almost line by line translation of the Java side of Clojure into Clojure itself, hopefully creating a very consistent translation. This was the original vision about writing Clojure in itself at the beginning of 2009 with "new-new" that later became deftype/defprotocol/definterface and friends.
 
-## OO->FP challenges
+## Gotchas
 
-* ClassB extends ClassA is resolved with a protocol ProtocolA for the abstract part of ClassA and a map map-impl-A containing names to functions impl for the concrete part of ClassA. ClassB is implemented as derecord ClassB extend ProtocolA + mix-in of map-impl-A + any other additional behaviour merged in the map. ClassA as such is never instantiated as a record, extactly like in Java there are no instances of abstract classes.
-* Interfaces are mapped to their respective protocols. There is no way to extend protocols from other protocols, so interface extension cannot be resolved by protocols. It needs to be resolved at the concrete defrecord implementation by walking all the implemented interfaces and implementing them inline in the record declaration.
-* Inner classes are translated as independent defrecords. If classA contains an inner classB, classB should receive an instantiation of classA when it is initialized, so it can access members of classA if necessary.
+* Implementing a purely functional data structure that offers persistence (like all core Clojure data structures) and at the same time avoid waste by internal sharing, *is going to involve state* although it is carefully hidden from you
+* Java-like mutable objects are better implemented with mutable deftypes
+* Abstract classes (something that was kept outside the scope of protocols by design in Clojure) needs to be implemented by assoc-ing general functions into deftypes definitions
+* In Java, inhereting from a class that implements interfaces (and maybe those interefaces extend others) automatically implies that the resulting objects are conformant to all interfaces, from the first level or above. In Clojure there is no such a thing like inheritance of types, there is one level only. So the Java concrete type needs to be analyzed for all the inherited interfaces and the resulting Clojure deftype will have to implements all of them (like a mix-in).
+* More gotchas to come soon.
 
 ## TODO
 
-*
+* Completely WIP, still not working, since the implementation of one persistent data structure (for example) implies a lot of dependencies to be implemented as well.
 
 ## License
 

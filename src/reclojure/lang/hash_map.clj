@@ -1,28 +1,36 @@
 (ns reclojure.lang.hash-map
   (:require [reclojure.lang.protocols.editable-collection :as ec]
             [reclojure.lang.protocols.transient-map :as tm]
+            [reclojure.lang.protocols.node :as node]
             [reclojure.lang.box]
+            [reclojure.lang.util :as u]
             [reclojure.lang.bitmap-indexed-node :as bin]
             [reclojure.lang.protocols.persistent-map :as pm])
+  (:refer-clojure :exclude [count meta])
   (:import [reclojure.lang.box Box]))
 
-(defrecord TransientHashMap [edit root count has-null null-value leaf-flag])
-(defrecord PersistentHashMap [meta count root has-null null-value])
+(u/defmutable PersistentHashMap [phmMeta phmCount phmRoot phmHasNull phmNullValue])
+(u/defmutable TransientHashMap [thmEdit thmRoot thmCount thmHasNull thmNullValue thmLeafFlag])
 
 (def EMPTY (PersistentHashMap. nil 0 nil false nil))
 
 (defn create-transient [phm]
   (TransientHashMap.
     (java.util.concurrent.atomic.AtomicReference. (Thread/currentThread))
-    (:root phm)
-    (:count phm)
-    (:has-null phm)
-    (:null-value phm)
+    (.phmRoot phm)
+    (.phmCount phm)
+    (.phmHasNull phm)
+    (.phmNullValue phm)
     (Box. nil)))
 
 (defn ->thm-do-persistent [thm]
-  (.set (:edit thm) nil)
-  (PersistentHashMap. nil (:count thm) (:root thm) (:has-null thm) (:null-value thm)))
+  (.thmEdit! thm nil)
+  (PersistentHashMap.
+    nil
+    (.thmCount thm)
+    (.thmRoot thm)
+    (.thmHasNull thm)
+    (.thmNullValue thm)))
 
 (defn ->phm-as-transient [phm]
   (create-transient phm))
@@ -35,7 +43,7 @@
       (tm/persistent thm))))
 
 (defn ->thm-ensure-editable [thm]
-  (let [owner (.get (:edit thm))]
+  (let [owner (.get (.thmEdit thm))]
     (cond
       (identical? owner (Thread/currentThread)) nil
       (not (nil? owner)) (throw (IllegalAccessError. (str "Transient used by non-owner thread owner " owner " current " (Thread/currentThread))))
@@ -44,32 +52,24 @@
       )))
 
 (defn ->phm-assoc [this a b]
-  (println "### phm->assoc this" this "a" a "b" b))
+  (str "### not implemented phm->assoc this" this "a" a "b" b))
 
 (defn ->thm-do-assoc [thm key val]
   (if (nil? key)
     (cond
-      (not= (:null-value thm) nil)
-      (assoc thm :null-value val)
-      (not (:has-null thm))
+      (not= (.thmNullValue thm) nil)
+      (.thmNullValue! thm val)
+      (not (.thmNullValue thm))
       (-> thm
-          (assoc :count (inc (:count thm)))
-          (assoc :has-null true))
+          (.thmCount! thm (inc (.thmCount thm)))
+          (.thmHasNull! thm true))
       :else thm)
     (let [leaf-flag (Box. nil)
-          n (assoc (if (nil? (:root thm)) bin/EMPTY (:root thm)) (:edit thm) 0 (hash key) key val leaf-flag)]
-      (do (if (not (identical? n (:root thm))) (assoc thm :root n))
-          (if (not (nil? @(:leaf-flag thm))) (inc (:count thm)))
+          empty-or-current (if (nil? (.thmRoot thm)) bin/EMPTY (.thmRoot thm))
+          n (node/assoc empty-or-current (.thmEdit thm) 0 (hash key) key val leaf-flag)]
+      (do (if (not (identical? n (.thmRoot thm))) (.thmRoot! thm n))
+          (if (not (nil? @(.thmLeafFlag thm))) (inc (.thmCount thm)))
           thm))))
-
-;    //    Box leafFlag = new Box(null);
-;    leafFlag.val = null;
-;    INode n = (root == null ? BitmapIndexedNode.EMPTY : root) <-- here's your Bitmap
-;      .assoc(edit, 0, hash(key), key, val, leafFlag);
-;    if (n != this.root)
-;      this.root = n;
-;    if(leafFlag.val != null) this.count++;
-;    return this;
 
 (extend TransientHashMap
   tm/TransientMap

@@ -29,14 +29,21 @@
     (instance? String o) (Murmur3/hashInt (.hashCode o))
     :else (.hashCode o)))
 
-;public static int hasheq(Object o){
-;  if(o == null)
-;    return 0;
-;  if(o instanceof IHashEq)
-;    return dohasheq((IHashEq) o);
-;  if(o instanceof Number)
-;    return Numbers.hasheq((Number)o);
-;  if(o instanceof String)
-;    return Murmur3.hashInt(o.hashCode());
-;  return o.hashCode();
-;}
+(defmacro defmutable
+  "Creates a JavaBean style object on top of a deftype definition."
+  [t attrs]
+  (let [iface (symbol (str "I" (name t)))
+        set-names (map #(symbol (str (name %) "!")) attrs)
+        set-declare (map (fn [set-name] `(~set-name [this# v#])) set-names)
+        set-impls (map (fn [set-name attr] `(~set-name [this# v#] (set! ~attr v#) this#)) set-names attrs)
+        get-declare (map (fn [attr] `(~attr [this#])) attrs)
+        get-impls (map (fn [attr] `(~attr [this#] ~attr)) attrs)
+        annotated-attrs (vec (map (fn [name] (with-meta name (assoc (meta name) :volatile-mutable true))) attrs))]
+    `(do
+       (defprotocol ~iface
+         ~@get-declare
+         ~@set-declare)
+       (deftype ~t ~annotated-attrs
+         ~iface
+         ~@get-impls
+         ~@set-impls))))
