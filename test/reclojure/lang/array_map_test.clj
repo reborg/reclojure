@@ -36,21 +36,3 @@
 ;;                       (pv/nth [this i] (if (= 0 i) 3 "c"))
 ;;                       (pv/nth [this i notFound] (if (= 0 i) 3 "c")))]
 ;;               (tm/conj tam v) => (am/create-transient (to-array [1 "a" 2 "b" 3 "c"])))))
-
-;;  ITransientMap doAssoc(Object key, Object val){
-;;    int i = indexOf(key);
-;;    if(i >= 0) //already have key,
-;;      {
-;;      if(array[i + 1] != val) //no change, no op
-;;        array[i + 1] = val;
-;;      }
-;;    else //didn't have key, grow
-;;      {
-;;      if(len >= array.length)
-;;        return PersistentHashMap.create(array).asTransient().assoc(key, val);
-;;      array[len++] = key;
-;;      array[len++] = val;
-;;      }
-;;    return this;
-;;  }
-

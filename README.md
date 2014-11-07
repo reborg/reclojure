@@ -14,6 +14,11 @@ Clojure has a quite complicated Java codebase (along with the Clojure side of it
 * In Java, inhereting from a class that implements interfaces (and maybe those interefaces extend others) automatically implies that the resulting objects are conformant to all interfaces, from the first level or above. In Clojure there is no such a thing like inheritance of types, there is one level only. So the Java concrete type needs to be analyzed for all the inherited interfaces and the resulting Clojure deftype will have to implements all of them (like a mix-in).
 * More gotchas to come soon.
 
+## Conventions
+
+* Mutable types created with defmutable are following Java naming conventions for the mutable class name and fields: (defmutable MyMutable [foo bar baz])
+* Implementations of functions defined in protocols, follow clojure functions naming conventions. The name is prefixed with -> to indicate that it implements a protocol function. It is also prefixed with initials of the protocol that is implemented to avoid name clashes in namespaces where multiple protocols are implemented. For example: PersistentHashMap::ensureEditable becomes ->phm-ensure-editable function implementation.
+
 ## TODO
 
 * Completely WIP, still not working, since the implementation of one persistent data structure (for example) implies a lot of dependencies to be implemented as well.

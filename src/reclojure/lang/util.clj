@@ -44,6 +44,8 @@
          ~@get-declare
          ~@set-declare)
        (deftype ~t ~annotated-attrs
+         Object
+         (toString [this#] (pr-str ~attrs))
          ~iface
          ~@get-impls
          ~@set-impls))))

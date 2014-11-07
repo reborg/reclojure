@@ -1,5 +1,6 @@
 (ns reclojure.lang.protocols.transient-map
-  (:require [reclojure.lang.protocols.persistent-vector :as pv])
+  (:require [reclojure.lang.protocols.persistent-vector :as pv]
+            [clojure.tools.logging :as log])
   (:refer-clojure :exclude [conj assoc count]))
 
 (defprotocol TransientMap
@@ -22,6 +23,7 @@
   (count [this]))
 
 (defn ->persistent [this]
+  (log/debug (format "->persistent on type %s" (type this)))
   (ensureEditable this)
   (doPersistent this))
 

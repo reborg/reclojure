@@ -3,6 +3,7 @@
             [reclojure.lang.protocols.transient-map :as tm]
             [reclojure.lang.protocols.node :as node]
             [reclojure.lang.box]
+            [clojure.tools.logging :as log]
             [reclojure.lang.util :as u]
             [reclojure.lang.bitmap-indexed-node :as bin]
             [reclojure.lang.protocols.persistent-map :as pm])
@@ -24,6 +25,7 @@
     (Box. nil)))
 
 (defn ->thm-do-persistent [thm]
+  (log/debug (format "->thm-do-persistent thmCount %s" (.thmCount thm)))
   (.thmEdit! thm nil)
   (PersistentHashMap.
     nil
@@ -36,40 +38,45 @@
   (create-transient phm))
 
 (defn create-persistent [^objects xs]
+  (log/debug (format "create-persistent from object array %s" xs))
   (let [thm (ec/as-transient EMPTY)]
     (do
-      (doall (for [i (filter even? (range 0 (alength xs)))]
+      (doall
+        (for [i (filter even? (range 0 (alength xs)))]
                (tm/assoc thm (aget xs i) (aget xs (inc i)))))
+  (log/debug (format "create-persistent after assoc"))
       (tm/persistent thm))))
 
 (defn ->thm-ensure-editable [thm]
+  (log/debug (format "->thm-ensure-editable thm count %s" (.thmCount thm)))
   (let [owner (.get (.thmEdit thm))]
-    (cond
-      (identical? owner (Thread/currentThread)) nil
-      (not (nil? owner)) (throw (IllegalAccessError. (str "Transient used by non-owner thread owner " owner " current " (Thread/currentThread))))
-      ;:else (throw (IllegalAccessError. (str "Transient used after persistent! call for tam " tam)))))
-      :else (println "thm->ensureEditable: no match")
-      )))
+    (if (nil? owner)
+      (throw (IllegalAccessError. (str "Transient used after persistent! call for thm " thm))))))
 
 (defn ->phm-assoc [this a b]
-  (str "### not implemented phm->assoc this" this "a" a "b" b))
+  (log/debug (format "### not implemented phm->assoc this" )))
 
 (defn ->thm-do-assoc [thm key val]
+  (log/debug (format "->thm-do-assoc thm '%s' key '%s' val '%s'" thm key val))
   (if (nil? key)
-    (cond
-      (not= (.thmNullValue thm) nil)
-      (.thmNullValue! thm val)
-      (not (.thmNullValue thm))
-      (-> thm
-          (.thmCount! thm (inc (.thmCount thm)))
-          (.thmHasNull! thm true))
-      :else thm)
-    (let [leaf-flag (Box. nil)
+    (do
+      (cond
+        (not= (.thmNullValue thm) val)
+        (.thmNullValue! thm val)
+        (not (.thmHasNull thm))
+        (-> thm
+            (.thmCount! (inc (.thmCount thm)))
+            (.thmHasNull! true)))
+      thm)
+    (let [
+          _ (.update (.thmLeafFlag thm) nil)
           empty-or-current (if (nil? (.thmRoot thm)) bin/EMPTY (.thmRoot thm))
-          n (node/assoc empty-or-current (.thmEdit thm) 0 (hash key) key val leaf-flag)]
-      (do (if (not (identical? n (.thmRoot thm))) (.thmRoot! thm n))
-          (if (not (nil? @(.thmLeafFlag thm))) (inc (.thmCount thm)))
-          thm))))
+          bin (node/assoc empty-or-current (.thmEdit thm) 0 (hash key) key val (.thmLeafFlag thm))]
+      (do
+        (if (not (identical? bin (.thmRoot thm))) (.thmRoot! thm bin))
+        (log/debug (format "->thm-do-assoc thmLeafFlag box '%s'" @(.thmLeafFlag thm)))
+        (if (not (nil? @(.thmLeafFlag thm))) (.thmCount! thm (inc (.thmCount thm))))
+        thm))))
 
 (extend TransientHashMap
   tm/TransientMap

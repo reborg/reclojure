@@ -51,12 +51,30 @@
       (System/arraycopy array 0 new-array 0 length)
       new-array)))
 
+
+(defn- ensure-editable [bin edit]
+  (if (identical? (.edit bin) edit)
+    bin
+    (let [n (Integer/bitCount (.bitmap bin))
+          size (if (>= n 0) (* 2 (inc n)) 4)
+          new-array (array-copy (.array bin) size (* 2 n))]
+      (BitmapIndexedNode. edit (.bitmap bin) new-array))))
+
+(defn- edit-and-set
+  ([bin edit i a]
+   (let [editable (ensure-editable bin edit)]
+     (doto (.array editable) (aset i a))))
+  ([bin edit i a j b]
+   (let [editable (ensure-editable bin edit)]
+     (doto (.array editable) (aset i a) (aset j b)))))
+
 (defn ->bin-assoc
   ([node shift hash key val added-leaf]
+   (log/debug (format "->bin-assoc node %s shift %s hash %s key %s val %s added-leaf %s" node shift hash key val added-leaf))
    (let [bit (bitpos hash shift)
          idx (index node bit)
-         bitmap (:bitmap node)
-         array (:array node)]
+         bitmap (.bitmap node)
+         array (.array node)]
      (log/debug (format "bit %s idx %s" bit idx))
      ; if
      (if (not (zero? (bit-and bitmap bit)))
@@ -105,10 +123,12 @@
                  noop (System/arraycopy array (* 2 idx) new-array (* 2 (inc idx)) (* 2 (- n idx)))]
              (BitmapIndexedNode. nil (bit-or bitmap bit) new-array)))))))
   ([node edit shift hash key val added-leaf]
+   (log/debug (format "->bin-assoc node '%s' edit '%s' shift '%s' hash '%s' key '%s' val '%s' added-leaf '%s'" node edit shift hash key val added-leaf))
    (let [bit (bitpos hash shift)
          idx (index node bit)
-         bitmap (:bitmap node)
-         array (:array node)]
+         bitmap (.bitmap node)
+         array (.array node)]
+     (log/debug (format "->bin-assoc bit '%s' idx '%s' bitmap '%s' array '%s' bit-and '%s'" bit idx bitmap array (bit-and bitmap bit)))
      (if (not (zero? (bit-and bitmap bit)))
        (let [key-or-null (aget array (* 2 idx))
              val-or-node (aget array (inc (* 2 idx)))]
@@ -117,32 +137,34 @@
            (let [n (->bin-assoc (+ 5 shift) hash key val added-leaf)]
              (if (= val-or-node n)
                node
-               (editAndSet edit (inc (* 2 idx)) n)))
+               (edit-and-set node edit (inc (* 2 idx)) n)))
            (util/equiv key key-or-null)
            (if (identical? val val-or-node)
              node
-             (edit-and-set edit (inc (* 2 idx)) val))
+             (edit-and-set node edit (inc (* 2 idx)) val))
            :else
            (do
              (.update added-leaf added-leaf)
              (->>
                (create-node (+ 5 shift) key-or-null val-or-node hash key val)
-               (edit-and-set edit (* 2 idx) nil (inc (* 2 idx)))))))
+               (edit-and-set node edit (* 2 idx) nil (inc (* 2 idx)))))))
        ; else
        (let [n (Integer/bitCount bitmap)]
-         (if (< (* 2 n) (.length array))
-           (let [noop (.update added-leaf added-leaf)
-                 editable (ensure-editable edit)
-             noop (System/arraycopy (.array editable) (* 2 idx) (.array editable) (* 2 (inc idx)) (* 2 (- n idx)))
-                    editable.array[2*idx] = key;
-                    editable.array[2*idx+1] = val;
-                    editable.bitmap |= bit;
-                    return editable;
-             ))
+         (log/debug (format "->bin-assoc count array '%s' n '%s'" (count array) n))
+         (if (< (* 2 n) (count array))
+           (let [editable (ensure-editable node edit)]
+             (.update added-leaf added-leaf)
+             (.bitmap! editable (bit-or (.bitmap editable) bit))
+             (doto
+               (.array editable)
+               (System/arraycopy (* 2 idx) (.array editable) (* 2 (inc idx)) (* 2 (- n idx)))
+               (aset (* 2 idx) key)
+               (aset (inc (* 2 idx)) val))
+             editable))
          (if (>= n 16)
            (let [nodes (make-array BitmapIndexedNode 32)
                  jdx (mask hash shift)
-                 noop (aset nodes jdx (.assoc EMPTY (+ 5 shift) hash key val added-leaf))
+                 noop (aset nodes jdx (->bin-assoc EMPTY edit (+ 5 shift) hash key val added-leaf))
                  j 0]
              (for [i (range 32)
                    j (filter even? (range 32))]
@@ -150,81 +172,23 @@
                  (if (nil? (aget array j))
                    (aset nodes i (aget array (inc j)))
                    (aset nodes i (.assoc EMPTY
+                                         edit
                                          (+ shift 5)
                                          (hash (aget array j))
                                          (aget array j)
                                          (aget array (inc j))
                                          added-leaf)))))
-             (ArrayNode. nil (inc n) nodes))
+             (ArrayNode. edit (inc n) nodes))
            ; else <16
-           (let [new-array (array-copy array (* 2 (inc n)) (* 2 idx))
-                 noop (aset new-array (* 2 idx) key)
-                 noop (.update added-leaf added-leaf)
-                 noop (System/arraycopy array (* 2 idx) new-array (* 2 (inc idx)) (* 2 (- n idx)))]
-             (BitmapIndexedNode. nil (bit-or bitmap bit) new-array)))))))
-
-
-;(defn ->bin-assoc
-;  ([node shift hash key val added-leaf] (->bin-assoc node nil shift hash key val adde-leaf))
-;  ([node edit shift hash key val added-leaf]
-;   (let [bit (bitpos hash shift)
-;         idx (index node bit)
-;         bitmap (.bitmap node)
-;         array (.array node)]
-;     (log/debug (format "bit %s idx %s" bit idx))
-;     ; if
-;     (if (pos? (bit-and bitmap bit))
-;       (let [key-or-null (aget array (* 2 idx))
-;             val-or-node (aget array (inc (* 2 idx)))]
-;         (cond
-;           (nil? key-or-null)
-;           (let [n (->bin-assoc (+ 5 shift) hash key val added-leaf)]
-;             (cond
-;               (= val-or-node n) node
-;               (not (nil? edit)) (edit-and-set edit (inc (* 2 idx)) n)
-;               :else (BitmapIndexedNode. nil bitmap (clone-and-set array (inc (+ 2 idx)) n))))
-;           (util/equiv key key-or-null)
-;           (cond
-;             (identical? val val-or-node) node
-;             (not (nil? edit)) (edit-and-set edit (inc (* 2 idx)) val)
-;             :else (BitmapIndexedNode. nil bitmap (clone-and-set array (inc (+ 2 idx)) val)))
-;           :else
-;           (do
-;             (.update added-leaf added-leaf)
-;             (if (not (nil? edit))
-;               (edit-and-set edit (* 2 idx) nil (inc (* 2 idx)) (create-node edit (+ 5 shift) key-or-null val-or-node hash key val))
-;               (->> (create-node (+ 5 shift) key-or-null val-or-node hash key val)
-;                    (clone-and-set array (+ 2 idx) nil (inc (+ 2 idx)))
-;                    (BitmapIndexedNode. nil bitmap))))))
-;       ; else
-;       (let [n (Integer/bitCount bitmap)]
-;         (if (and (not (nil? edit)) (< (* 2 n) (:length array)))
-;           (let [noop (.update added-leaf added-leaf)
-;                 editable (ensure-editable edit)
-;             ))
-;         (if (>= n 16)
-;           (let [nodes (make-array BitmapIndexedNode 32)
-;                 jdx (mask hash shift)
-;                 noop (aset nodes jdx (.assoc EMPTY (+ 5 shift) hash key val added-leaf))
-;                 j 0]
-;             (for [i (range 32)
-;                   j (filter even? (range 32))]
-;               (when (not (zero? (bit-and (unsigned-bit-shift-right bitmap i) 1)))
-;                 (if (nil? (aget array j))
-;                   (aset nodes i (aget array (inc j)))
-;                   (aset nodes i (.assoc EMPTY
-;                                         (+ shift 5)
-;                                         (hash (aget array j))
-;                                         (aget array j)
-;                                         (aget array (inc j))
-;                                         added-leaf)))))
-;             (ArrayNode. nil (inc n) nodes))
-;           ; else <16
-;           (let [new-array (array-copy array (* 2 (inc n)) (* 2 idx))
-;                 noop (aset new-array (* 2 idx) key)
-;                 noop (.update added-leaf added-leaf)
-;                 noop (System/arraycopy array (* 2 idx) new-array (* 2 (inc idx)) (* 2 (- n idx)))]
-;             (BitmapIndexedNode. nil (bit-or bitmap bit) new-array))))))))
+           (let [new-array (array-copy array (* 2 (+ 4 n)) (* 2 idx))
+                 editable (ensure-editable node edit)]
+             (doto new-array (aset (* 2 idx) key) (aset (inc (* 2 idx)) val))
+             (.update added-leaf added-leaf)
+             (System/arraycopy array (* 2 idx) new-array (* 2 (inc idx)) (* 2 (- n idx)))
+             (log/debug (format "->bin-assoc array '%s' new-array '%s'" (java.util.Arrays/toString array) (java.util.Arrays/toString new-array)))
+             (doto editable (.array! new-array) (.bitmap! (bit-or (.bitmap editable) bit)))
+             (log/debug (format "->bin-assoc editable array '%s'" (java.util.Arrays/toString (.array editable))))
+             editable)))))))
 
 (extend BitmapIndexedNode
   node/Node
