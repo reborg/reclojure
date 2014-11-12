@@ -5,20 +5,20 @@
             [reclojure.lang.protocols.persistent-map :as pm]
             [reclojure.lang.array-map :as am]))
 
-#_(facts "persistent"
+(facts "persistent"
        (fact "consing a HashMap$Entry in"
              (let [m (doto (java.util.HashMap.) (.put "a" 1))
                    e (first (.entrySet m))
                    pam (am/create-persistent m)]
                (pm/get (pm/cons pam e) "a") => 1)))
 
-#_(facts "transient"
+(facts "transient"
        (fact "create from a java array"
              (let [m (am/create-transient (to-array [1 2 3]))]
                (.len m) => 3
                (.owner m) => (Thread/currentThread))))
 
-#_(facts "transient read"
+(facts "transient read"
        (fact "access to key skips odd indexes"
              (am/tam-index-of "b" (am/create-transient (to-array ["a" "X" "b" "X"]))) => 2
              (am/tam-index-of "X" (am/create-transient (to-array ["a" "X"]))) => -1
