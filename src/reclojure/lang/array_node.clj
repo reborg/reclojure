@@ -5,7 +5,7 @@
 (u/defmutable ArrayNode [edit count array])
 
 (defn ->hash-assoc []
-  (throw "implement me"))
+  (throw (RuntimeException. "implement me")))
 
 (extend ArrayNode
   node/Node

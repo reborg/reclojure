@@ -39,7 +39,7 @@
   (cond
     (identical? (.owner tam) (Thread/currentThread)) nil
     (not (nil? (.owner tam))) (throw (IllegalAccessError. "Transient used by non-owner thread"))
-    :else (throw "tam->ensure-editable: no match")))
+    :else (throw (RuntimeException. "tam->ensure-editable: no match"))))
 
 (defn persistent [this]
   (log/debug (format "persistent on '%s'" (type this)))

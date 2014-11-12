@@ -45,7 +45,7 @@
     (if (= 2 (pv/count o))
       (pv/assoc pm (pv/nth o 0) (pv/nth o 1))
       (throw (IllegalArgumentException. "Vector arg to map conj must be a pair")))
-    :else (throw "pm/->cons missing implementation")))
+    :else (throw (RuntimeException. "pm/->cons missing implementation"))))
 
 (defn ->get [pm k]
   (valAt pm k))

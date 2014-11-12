@@ -13,7 +13,7 @@
 (u/defmutable PersistentHashMap [phmMeta phmCount phmRoot phmHasNull phmNullValue])
 (u/defmutable TransientHashMap [thmEdit thmRoot thmCount thmHasNull thmNullValue thmLeafFlag])
 
-(def EMPTY (PersistentHashMap. nil 0 nil false nil))
+(defn EMPTY [] (PersistentHashMap. nil 0 nil false nil))
 
 (defn create-transient [phm]
   (log/debug (format "create-transient for phm"))
@@ -41,7 +41,7 @@
 
 (defn create-persistent [^objects xs]
   (log/debug (format "create-persistent from object array %s" (u/aprint xs)))
-  (let [thm (ec/as-transient EMPTY)]
+  (let [thm (ec/as-transient (EMPTY))]
     (doall
       (for [i (filter even? (range 0 (alength xs)))]
         (tm/assoc thm (aget xs i) (aget xs (inc i)))))
@@ -54,7 +54,7 @@
       (throw (IllegalAccessError. (str "Transient used after persistent! call for thm " thm))))))
 
 (defn ->phm-assoc [this a b]
-  (throw (format "### not implemented phm->assoc this" )))
+  (throw (RuntimeException. (format "### not implemented phm->assoc this" ))))
 
 (defn ->thm-do-assoc [thm key val]
   (log/debug (format "->thm-do-assoc thm with key '%s'" key))

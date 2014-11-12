@@ -5,7 +5,7 @@
 (u/defmutable HashCollisionNode [edit hash count array])
 
 (defn ->hash-assoc [node shift hash key val addedLeaf]
-  (throw "implement me"))
+  (throw (RuntimeException. "implement me")))
 
 (extend HashCollisionNode
   node/Node
