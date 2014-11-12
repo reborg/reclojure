@@ -49,3 +49,9 @@
          ~iface
          ~@get-impls
          ~@set-impls))))
+
+(defn aprint [o]
+  "If object contains an array or object is an array, print its content."
+  (try
+    (java.util.Arrays/toString (.array o))
+    (catch Exception e (java.util.Arrays/toString o))))

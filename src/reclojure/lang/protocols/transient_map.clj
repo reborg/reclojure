@@ -1,6 +1,6 @@
 (ns reclojure.lang.protocols.transient-map
   (:require [reclojure.lang.protocols.persistent-vector :as pv]
-            [clojure.tools.logging :as log])
+            [clojure.tools.logging :refer [debug spy]])
   (:refer-clojure :exclude [conj assoc count]))
 
 (defprotocol TransientMap
@@ -23,25 +23,27 @@
   (count [this]))
 
 (defn ->persistent [this]
-  (log/debug (format "->persistent on type %s" (type this)))
+  (debug (format "->persistent on type '%s'" (type this)))
   (ensureEditable this)
   (doPersistent this))
 
 (defn ->assoc [this key val]
+  (debug (format "->assoc tm for new key '%s'" key))
   (ensureEditable this)
   (doAssoc this key val))
 
 (defn ->conj [this o]
+  (debug (format "->conj object '%s'" o))
   (ensureEditable this)
   (cond
     (instance? java.util.Map$Entry o)
-    (assoc this (.getKey o) (.getValue o))
+    (->assoc this (.getKey o) (.getValue o))
     (satisfies? pv/PersistentVector o)
     (if (not (= 2 (pv/count o)))
       (throw (IllegalArgumentException. "Vector arg to map conj must be a pair"))
       (->assoc this (pv/nth o 0) (pv/nth o 1)))
     :else
-    (map #(assoc this (.getKey %) (.getValue %)) (seq o))))
+    (map #(->assoc this (.getKey %) (.getValue %)) (seq o))))
 
 (def TransientMapImpl
   {:conj #'->conj

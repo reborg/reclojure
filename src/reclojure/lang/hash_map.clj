@@ -16,6 +16,7 @@
 (def EMPTY (PersistentHashMap. nil 0 nil false nil))
 
 (defn create-transient [phm]
+  (log/debug (format "create-transient for phm"))
   (TransientHashMap.
     (java.util.concurrent.atomic.AtomicReference. (Thread/currentThread))
     (.phmRoot phm)
@@ -35,17 +36,16 @@
     (.thmNullValue thm)))
 
 (defn ->phm-as-transient [phm]
+  (log/debug (format "->phm-as-transient"))
   (create-transient phm))
 
 (defn create-persistent [^objects xs]
-  (log/debug (format "create-persistent from object array %s" xs))
+  (log/debug (format "create-persistent from object array %s" (u/aprint xs)))
   (let [thm (ec/as-transient EMPTY)]
-    (do
-      (doall
-        (for [i (filter even? (range 0 (alength xs)))]
-               (tm/assoc thm (aget xs i) (aget xs (inc i)))))
-  (log/debug (format "create-persistent after assoc"))
-      (tm/persistent thm))))
+    (doall
+      (for [i (filter even? (range 0 (alength xs)))]
+        (tm/assoc thm (aget xs i) (aget xs (inc i)))))
+    (tm/persistent thm)))
 
 (defn ->thm-ensure-editable [thm]
   (log/debug (format "->thm-ensure-editable thm count %s" (.thmCount thm)))
@@ -54,10 +54,10 @@
       (throw (IllegalAccessError. (str "Transient used after persistent! call for thm " thm))))))
 
 (defn ->phm-assoc [this a b]
-  (log/debug (format "### not implemented phm->assoc this" )))
+  (throw (format "### not implemented phm->assoc this" )))
 
 (defn ->thm-do-assoc [thm key val]
-  (log/debug (format "->thm-do-assoc thm '%s' key '%s' val '%s'" thm key val))
+  (log/debug (format "->thm-do-assoc thm with key '%s'" key))
   (if (nil? key)
     (do
       (cond
@@ -75,7 +75,8 @@
       (do
         (if (not (identical? bin (.thmRoot thm))) (.thmRoot! thm bin))
         (log/debug (format "->thm-do-assoc thmLeafFlag box '%s'" @(.thmLeafFlag thm)))
-        (if (not (nil? @(.thmLeafFlag thm))) (.thmCount! thm (inc (.thmCount thm))))
+        (if (not (nil? @(.thmLeafFlag thm)))
+          (.thmCount! thm (inc (.thmCount thm))))
         thm))))
 
 (extend TransientHashMap

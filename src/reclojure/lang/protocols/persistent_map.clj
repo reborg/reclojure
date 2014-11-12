@@ -1,5 +1,6 @@
 (ns reclojure.lang.protocols.persistent-map
-  (:require [reclojure.lang.protocols.persistent-vector :as pv])
+  (:require [reclojure.lang.protocols.persistent-vector :as pv]
+            [clojure.tools.logging :as log])
   (:refer-clojure :exclude [cons empty seq get remove assoc count])
   (:import [clojure.lang RT]))
 
@@ -35,15 +36,20 @@
 (defn ^String ->toString [this]
   (RT/printString this))
 
-(defn ->cons [this o]
+(defn ->cons [pm o]
+  (log/debug (format "->cons object %s" o))
   (cond
     (instance? java.util.Map$Entry o)
-    (assoc this (.getKey o) (.getValue o))
+    (assoc pm (.getKey o) (.getValue o))
     (satisfies? pv/PersistentVector o)
     (if (= 2 (pv/count o))
-      (pv/assoc this (pv/nth o 0) (pv/nth o 1))
+      (pv/assoc pm (pv/nth o 0) (pv/nth o 1))
       (throw (IllegalArgumentException. "Vector arg to map conj must be a pair")))
     :else (throw "pm/->cons missing implementation")))
 
+(defn ->get [pm k]
+  (valAt pm k))
+
 (def PersistentMapImpl
-  {:cons #'->cons})
+  {:cons #'->cons
+   :get #'->get})

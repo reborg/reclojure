@@ -21,6 +21,8 @@ Clojure has a quite complicated Java codebase (along with the Clojure side of it
 
 ## TODO
 
+* check all uses of aset, that after I'm correctly the returning the array. Even better get a macro to do te job of embedding that they way you want it, or use doto.
+* evaluating if keeping java convention for defptorocol fn names, would prefer clj
 * Completely WIP, still not working, since the implementation of one persistent data structure (for example) implies a lot of dependencies to be implemented as well.
 
 ## License
