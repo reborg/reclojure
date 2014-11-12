@@ -1,9 +1,11 @@
 (ns reclojure.lang.hash-collision-node
-  (:require [reclojure.lang.protocols.node :as node]))
+  (:require [reclojure.lang.protocols.node :as node]
+            [reclojure.lang.util :as u]))
 
-(defrecord HashCollisionNode [edit hash count array])
+(u/defmutable HashCollisionNode [edit hash count array])
 
-(defn ->hash-assoc [node shift hash key val addedLeaf])
+(defn ->hash-assoc [node shift hash key val addedLeaf]
+  (throw "implement me"))
 
 (extend HashCollisionNode
   node/Node

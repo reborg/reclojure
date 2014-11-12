@@ -1,9 +1,11 @@
 (ns reclojure.lang.array-node
-  (:require [reclojure.lang.protocols.node :as node]))
+  (:require [reclojure.lang.protocols.node :as node]
+            [reclojure.lang.util :as u]))
 
-(defrecord ArrayNode [edit count array])
+(u/defmutable ArrayNode [edit count array])
 
-(defn ->hash-assoc [])
+(defn ->hash-assoc []
+  (throw "implement me"))
 
 (extend ArrayNode
   node/Node
