@@ -3,6 +3,7 @@
             [clojure.java.io :as io]
             [clojure.string :as s]
             [reclojure.lang.hash-map :as hm]
+            [reclojure.lang.bitmap-indexed-node :as bin]
             [reclojure.lang.protocols.persistent-map :as pm]))
 
 (facts "persistent hash map"
@@ -15,9 +16,11 @@
              (let [thm (hm/create-transient (hm/create-persistent (.toArray (java.util.Collections/emptyList))))]
               (.thmCount thm) => 0)))
 
-;(facts "porting of PersistentHashMap::main test method"
+(fact "assoc a few"
+      (.phmCount (reduce #(pm/assoc %1 %2 %2) (hm/EMPTY) ["ns" "reclojure" "langaaaaaaa"])) => 3)
+
+;(fact "porting of PersistentHashMap::main test method"
 ;       (let [f (slurp (io/resource "reclojure/lang/bitmap_indexed_node.clj"))
-;             words (remove s/blank? (s/split f #"\W"))
-;             phm (hm/EMPTY)]
-;         (doall (map #(pm/assoc phm % %) words))
-;         (first words) => "aa"))
+;             words (distinct (remove s/blank? (s/split f #"\W")))
+;             res (reduce #(pm/assoc %1 %2 %2) (hm/EMPTY) words)]
+;         (.phmCount res) => 1))

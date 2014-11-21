@@ -1,20 +1,25 @@
 (ns reclojure.lang.util
   (:require [reclojure.lang.protocols.persistent-collection :as pc]
             [reclojure.lang.protocols.hash-eq :as he]
+            [clojure.tools.logging :as log]
             [reclojure.lang.numbers :as nums])
-  (:import [clojure.lang Numbers Murmur3]))
+  (:import [clojure.lang Numbers Murmur3]
+           [reclojure.lang.protocols.persistent_collection PersistentCollection]))
 
 (defn pcequiv [k1 k2]
+  (log/debug (format "->pcequiv k1 '%s' k2 '%s'" k1 k2))
   (if (satisfies? k1 pc/PersistentCollection)
     (pc/equiv k1 k2)
     (.equiv k2 k1)))
 
 (defn equiv [k1 k2]
+  (log/debug (format "->equiv k1 '%s' type '%s' k2 '%s' type '%s'" k1 (type k1) k2 (type k2)))
   (cond
     (identical? k1 k2) true
     (not= k1 nil) (cond
-                    (and (instance? k1 Number) (instance? k2 Number)) (nums/equal k1 k2)
-                    (or (satisfies? k1 pc/PersistentCollection) (satisfies? k2 pc/PersistentCollection)) (pc/equiv k1 k2)
+                    (and (instance? Number k1) (instance? Number k2)) (nums/equal k1 k2)
+                    (or (instance? PersistentCollection k1)
+                        (instance? PersistentCollection k2)) (pc/equiv k1 k2)
                     :else (.equals k1 k2))
     :else false))
 
@@ -22,12 +27,12 @@
   (.hasheq o))
 
 (defn hasheq [o]
-  (cond
-    (nil? o) 0
-    (satisfies? he/HashEq o) (dohasheq o)
-    (instance? Number o) (nums/hasheq o)
-    (instance? String o) (Murmur3/hashInt (.hashCode o))
-    :else (.hashCode o)))
+  (int (cond
+         (nil? o) 0
+         (satisfies? he/HashEq o) (dohasheq o)
+         (instance? Number o) (nums/hasheq o)
+         (instance? String o) (Murmur3/hashInt (.hashCode o))
+         :else (.hashCode o))))
 
 (defmacro defmutable
   "Creates a JavaBean style object on top of a deftype definition."

@@ -12,7 +12,7 @@
 (u/defmutable TransientArrayMap [len array owner])
 (u/defmutable PersistentArrayMap [array meta])
 
-(def EMPTY (PersistentArrayMap. nil nil))
+(defn EMPTY [] (PersistentArrayMap. nil nil))
 
 (defn- init-array [^objects from]
   (let [l (max *hashtable_threshold* (alength from))

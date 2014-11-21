@@ -8,12 +8,15 @@
             [reclojure.lang.bitmap-indexed-node :as bin]
             [reclojure.lang.protocols.persistent-map :as pm])
   (:refer-clojure :exclude [count meta])
-  (:import [reclojure.lang.box Box]))
+  (:import [reclojure.lang.box Box]
+           [reclojure.lang.protocols.node Node]))
 
 (u/defmutable PersistentHashMap [phmMeta phmCount phmRoot phmHasNull phmNullValue])
 (u/defmutable TransientHashMap [thmEdit thmRoot thmCount thmHasNull thmNullValue thmLeafFlag])
 
-(defn EMPTY [] (PersistentHashMap. nil 0 nil false nil))
+(defn EMPTY []
+  (log/debug (format "EMPTY phm"))
+  (PersistentHashMap. nil 0 nil false nil))
 
 (defn create-transient [phm]
   (log/debug (format "create-transient for phm"))
@@ -53,8 +56,23 @@
     (if (nil? owner)
       (throw (IllegalAccessError. (str "Transient used after persistent! call for thm " thm))))))
 
-(defn ->phm-assoc [this a b]
-  (throw (RuntimeException. (format "### not implemented phm->assoc this" ))))
+(defn ->phm-assoc [phm k v]
+  (log/debug (format "->phm-assoc count '%s' k '%s' v '%s'" (.phmCount phm) k v))
+  (let [has-null (.phmHasNull phm)
+        null-value (.phmNullValue phm)
+        meta (.phmMeta phm)
+        root (.phmRoot phm)
+        count (.phmCount phm)]
+    (if (nil? k)
+      (if (and has-null (identical? v null-value))
+        phm
+        (PersistentHashMap. (.phmMeta phm) (if has-null count (inc count)) root true v))
+      (let [added-leaf (Box. nil)
+            old-or-new (if (nil? root) (bin/EMPTY) root)
+            new-root (node/assoc old-or-new (int 0) (hash k) k v added-leaf)]
+        (if (identical? new-root root)
+          phm
+          (PersistentHashMap. (.phmMeta phm) (if (nil? @added-leaf) count (inc count)) new-root has-null null-value))))))
 
 (defn ->thm-do-assoc [thm key val]
   (log/debug (format "->thm-do-assoc thm with key '%s'" key))
@@ -70,8 +88,8 @@
       thm)
     (let [
           _ (.update (.thmLeafFlag thm) nil)
-          empty-or-current (if (nil? (.thmRoot thm)) bin/EMPTY (.thmRoot thm))
-          bin (node/assoc empty-or-current (.thmEdit thm) 0 (hash key) key val (.thmLeafFlag thm))]
+          empty-or-current (if (nil? (.thmRoot thm)) (bin/EMPTY) (.thmRoot thm))
+          bin (node/assoc empty-or-current (.thmEdit thm) (int 0) (unchecked-int (hash key)) key val (.thmLeafFlag thm))]
       (do
         (if (not (identical? bin (.thmRoot thm))) (.thmRoot! thm bin))
         (log/debug (format "->thm-do-assoc thmLeafFlag box '%s'" @(.thmLeafFlag thm)))
