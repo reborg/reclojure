@@ -1,37 +1,24 @@
-(ns reclojure.lang.bitmap-indexed-node
+(ns reclojure.lang.node
   (:require [reclojure.lang.protocols.node :as node]
-            [reclojure.lang.hash-collision-node]
-            [reclojure.lang.array-node]
             [reclojure.lang.box]
             [clojure.tools.logging :as log]
             [reclojure.lang.util :as util])
-  (:import [reclojure.lang.hash_collision_node HashCollisionNode]
-           [reclojure.lang.box Box]
-           [reclojure.lang.array_node ArrayNode]
+  (:import [reclojure.lang.box Box]
            [java.util.concurrent.atomic AtomicReference])
   (:refer-clojure :exclude [hash]))
 
-(util/defmutable BitmapIndexedNode [edit bitmap array])
+(util/defmutable BitmapIndexedNode [binEdit binBitmap binArray])
+(util/defmutable ArrayNode [anEdit anCount anArray])
+(util/defmutable HashCollisionNode [hcnEdit hcnHash hcnCount hcnArray])
 
-(defn EMPTY [] (BitmapIndexedNode. nil (int 0) (.toArray (java.util.Collections/emptyList))))
+(defn EMPTY_BIN [] (BitmapIndexedNode. nil (int 0) (.toArray (java.util.Collections/emptyList))))
 
 (defn index [node bit]
-  (Integer/bitCount (bit-and (.bitmap node) (- bit 1))))
+  (Integer/bitCount (bit-and (.binBitmap node) (- bit 1))))
 
 (defn bitpos [hash shift]
   (log/debug (format "bitpos hash '%s' shift '%s'" hash shift))
-  (clojure.lang.Numbers/shiftLeftInt 1 (bit-and (clojure.lang.Numbers/unsignedShiftRightInt hash shift) 0x01f)))
-
-(defn mask [hash shift]
-  (bit-and (unsigned-bit-shift-right hash shift) 0x1f))
-
-(defn clone-and-set
-  ([array idx obj]
-   (log/debug (format "clone-and-set array '%s' idx '%s' obj '%s'" array idx obj))
-   (doto (aclone array) (aset idx obj)))
-  ([array idx a jdx b]
-   (log/debug (format "clone-and-set array '%s' idx '%s' a '%s' jdx '%s' b '%s'" (util/aprint array) idx a jdx b))
-   (doto (aclone array) (aset idx a) (aset jdx b))))
+  (clojure.lang.Numbers/shiftLeftInt 1 (util/mask hash shift)))
 
 (defn hash [k]
   (util/hasheq k))
@@ -49,7 +36,7 @@
                     (.add val2))))
       (let [added-leaf (Box. nil)
             edit (AtomicReference.)]
-        (-> (EMPTY)
+        (-> (EMPTY_BIN)
             (node/assoc edit shift key1hash key1 val1 added-leaf)
             (node/assoc edit shift key2hash key2 val2 added-leaf))))))
 
@@ -61,20 +48,20 @@
 
 
 (defn- ensure-editable [bin edit]
-  (if (identical? (.edit bin) edit)
+  (if (identical? (.binEdit bin) edit)
     bin
-    (let [n (Integer/bitCount (.bitmap bin))
+    (let [n (Integer/bitCount (.binBitmap bin))
           size (if (>= n 0) (* 2 (inc n)) 4)
-          new-array (array-copy (.array bin) size (* 2 n))]
-      (BitmapIndexedNode. edit (.bitmap bin) new-array))))
+          new-array (array-copy (.binArray bin) size (* 2 n))]
+      (BitmapIndexedNode. edit (.binBitmap bin) new-array))))
 
 (defn- edit-and-set
   ([bin edit i a]
    (let [editable (ensure-editable bin edit)]
-     (doto (.array editable) (aset i a))))
+     (doto (.binArray editable) (aset i a))))
   ([bin edit i a j b]
    (let [editable (ensure-editable bin edit)]
-     (doto (.array editable) (aset i a) (aset j b)))))
+     (doto (.binArray editable) (aset i a) (aset j b)))))
 
 (defn ->bin-assoc
   ([node shift hash key val added-leaf]
@@ -82,8 +69,8 @@
          shift (unchecked-int shift)
          hash (unchecked-int hash)
          idx (index node bit)
-         bitmap (.bitmap node)
-         array (.array node)]
+         bitmap (.binBitmap node)
+         array (.binArray node)]
      (log/debug (format "->bin-assoc (no edit) let bindings: bit '%s' shift '%s' hash '%s' idx '%s' bitmap '%s'. (bit-and bitmap bit)? '%s'" bit shift hash idx bitmap (bit-and bitmap bit)))
      ; if
      (if (not (zero? (bit-and bitmap bit)))
@@ -95,32 +82,32 @@
            (let [n (->bin-assoc node (+ 5 shift) hash key val added-leaf)]
              (if (= val-or-node n)
                node
-               (BitmapIndexedNode. nil bitmap (clone-and-set array (inc (* 2 idx)) n))))
+               (BitmapIndexedNode. nil bitmap (util/clone-and-set array (inc (* 2 idx)) n))))
            (util/equiv key key-or-null)
            (if (identical? val val-or-node)
              node
-             (BitmapIndexedNode. nil bitmap (clone-and-set array (inc (* 2 idx)) val)))
+             (BitmapIndexedNode. nil bitmap (util/clone-and-set array (inc (* 2 idx)) val)))
            :else
            (do
              (.update added-leaf added-leaf)
              (->>
                (create-node (+ 5 shift) key-or-null val-or-node hash key val)
-               (clone-and-set array (* 2 idx) nil (inc (* 2 idx)))
+               (util/clone-and-set array (* 2 idx) nil (inc (* 2 idx)))
                (BitmapIndexedNode. nil bitmap)))))
        ; else
        (let [n (Integer/bitCount bitmap)]
          (log/debug (format "->bin-assoc (no edit) bitcount '%s'" n))
          (if (>= n 16)
            (let [nodes (make-array BitmapIndexedNode 32)
-                 jdx (mask hash shift)
-                 noop (aset nodes jdx (node/assoc (EMPTY) (+ 5 shift) hash key val added-leaf))
+                 jdx (util/mask hash shift)
+                 noop (aset nodes jdx (node/assoc (EMPTY_BIN) (+ 5 shift) hash key val added-leaf))
                  j 0]
              (for [i (range 32)
                    j (filter even? (range 32))]
                (when (not (zero? (bit-and (unsigned-bit-shift-right bitmap i) 1)))
                  (if (nil? (aget array j))
                    (aset nodes i (aget array (inc j)))
-                   (aset nodes i (node/assoc (EMPTY)
+                   (aset nodes i (node/assoc (EMPTY_BIN)
                                          (+ shift 5)
                                          (hash (aget array j))
                                          (aget array j)
@@ -138,8 +125,8 @@
    (log/debug (format "->bin-assoc node '%s' edit '%s' shift '%s' hash '%s' key '%s' val '%s' added-leaf '%s'" node edit shift hash key val added-leaf))
    (let [bit (bitpos hash shift)
          idx (index node bit)
-         bitmap (.bitmap node)
-         array (.array node)]
+         bitmap (.binBitmap node)
+         array (.binArray node)]
      (log/debug (format "->bin-assoc bit '%s' idx '%s' bitmap '%s' array '%s' bit-and '%s'" bit idx bitmap array (bit-and bitmap bit)))
      (if (not (zero? (bit-and bitmap bit)))
        (let [key-or-null (aget array (* 2 idx))
@@ -166,24 +153,24 @@
          (if (< (* 2 n) (count array))
            (let [editable (ensure-editable node edit)]
              (.update added-leaf added-leaf)
-             (.bitmap! editable (bit-or (.bitmap editable) bit))
+             (.binBitmap! editable (bit-or (.binBitmap editable) bit))
              (doto
-               (.array editable)
-               (System/arraycopy (* 2 idx) (.array editable) (* 2 (inc idx)) (* 2 (- n idx)))
+               (.binArray editable)
+               (System/arraycopy (* 2 idx) (.binArray editable) (* 2 (inc idx)) (* 2 (- n idx)))
                (aset (* 2 idx) key)
                (aset (inc (* 2 idx)) val))
              editable))
          (if (>= n 16)
            (let [nodes (make-array BitmapIndexedNode 32)
-                 jdx (mask hash shift)
-                 noop (aset nodes jdx (->bin-assoc (EMPTY) edit (+ 5 shift) hash key val added-leaf))
+                 jdx (util/mask hash shift)
+                 noop (aset nodes jdx (->bin-assoc (EMPTY_BIN) edit (+ 5 shift) hash key val added-leaf))
                  j 0]
              (for [i (range 32)
                    j (filter even? (range 32))]
                (when (not (zero? (bit-and (unsigned-bit-shift-right bitmap i) 1)))
                  (if (nil? (aget array j))
                    (aset nodes i (aget array (inc j)))
-                   (aset nodes i (node/assoc (EMPTY)
+                   (aset nodes i (node/assoc (EMPTY_BIN)
                                          edit
                                          (+ shift 5)
                                          (hash (aget array j))
@@ -198,10 +185,49 @@
              (.update added-leaf added-leaf)
              (System/arraycopy array (* 2 idx) new-array (* 2 (inc idx)) (* 2 (- n idx)))
              (log/debug (format "->bin-assoc array '%s' new-array '%s'" (java.util.Arrays/toString array) (java.util.Arrays/toString new-array)))
-             (doto editable (.array! new-array) (.bitmap! (bit-or (.bitmap editable) bit)))
-             (log/debug (format "->bin-assoc editable array '%s'" (java.util.Arrays/toString (.array editable))))
+             (doto editable (.binArray! new-array) (.binBitmap! (bit-or (.binBitmap editable) bit)))
+             (log/debug (format "->bin-assoc editable array '%s'" (java.util.Arrays/toString (.binArray editable))))
              editable)))))))
+
+;public INode assoc(int shift, int hash, Object key, Object val, Box addedLeaf){
+;    int idx = mask(hash, shift);
+;    INode node = array[idx];
+;    if(node == null)
+;      return new ArrayNode(null, count + 1, cloneAndSet(array, idx, BitmapIndexedNode.EMPTY.assoc(shift + 5, hash, key, val, addedLeaf)));
+;    INode n = node.assoc(shift + 5, hash, key, val, addedLeaf);
+;    if(n == node)
+;      return this;
+;    return new ArrayNode(null, count, cloneAndSet(array, idx, n));
+;}
+
+(defn ->an-assoc
+  ([node shift hash key val addedLeaf]
+   (log/debug (format "->an-assoc node '%s' shift '%s' hash '%s' key '%s' val '%s' addedLeaf '%s'" node shift hash key val addedLeaf))
+   (let [idx (util/mask hash shift)
+         node-idx (aget (.anArray node) idx)]
+     (if (nil? node-idx)
+       (let [new-count (inc (.anCount node))
+             new-bin (node/assoc (EMPTY_BIN) (+ 5 shift) hash key val addedLeaf)
+             cloned (util/clone-and-set (.anArray node) idx new-bin)]
+         (ArrayNode. nil new-count cloned))
+       (let [n (node/assoc node (+ 5 shift) hash key val addedLeaf)]
+         (if (= n node-idx)
+           node
+           (ArrayNode. nil (.anCount node) (util/clone-and-set (.anArray node) idx n)))))))
+  ([node edit shift hash key val addedLeaf]
+   (log/debug (format "->an-assoc node '%s' edit '%s' shift '%s' hash '%s' key '%s' val '%s' addedLeaf '%s'" node edit shift hash key val addedLeaf))))
+
+(defn ->hcn-assoc [node shift hash key val addedLeaf]
+  (throw (RuntimeException. "implement me")))
 
 (extend BitmapIndexedNode
   node/Node
   {:assoc #'->bin-assoc})
+
+(extend HashCollisionNode
+  node/Node
+  {:assoc #'->hcn-assoc})
+
+(extend ArrayNode
+  node/Node
+  {:assoc #'->an-assoc})

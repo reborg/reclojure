@@ -5,7 +5,7 @@
             [reclojure.lang.box]
             [clojure.tools.logging :as log]
             [reclojure.lang.util :as u]
-            [reclojure.lang.bitmap-indexed-node :as bin]
+            [reclojure.lang.node :refer [EMPTY_BIN]]
             [reclojure.lang.protocols.persistent-map :as pm])
   (:refer-clojure :exclude [count meta])
   (:import [reclojure.lang.box Box]
@@ -68,7 +68,7 @@
         phm
         (PersistentHashMap. (.phmMeta phm) (if has-null count (inc count)) root true v))
       (let [added-leaf (Box. nil)
-            old-or-new (if (nil? root) (bin/EMPTY) root)
+            old-or-new (if (nil? root) (EMPTY_BIN) root)
             new-root (node/assoc old-or-new (int 0) (hash k) k v added-leaf)]
         (if (identical? new-root root)
           phm
@@ -88,7 +88,7 @@
       thm)
     (let [
           _ (.update (.thmLeafFlag thm) nil)
-          empty-or-current (if (nil? (.thmRoot thm)) (bin/EMPTY) (.thmRoot thm))
+          empty-or-current (if (nil? (.thmRoot thm)) (EMPTY_BIN) (.thmRoot thm))
           bin (node/assoc empty-or-current (.thmEdit thm) (int 0) (unchecked-int (hash key)) key val (.thmLeafFlag thm))]
       (do
         (if (not (identical? bin (.thmRoot thm))) (.thmRoot! thm bin))
