@@ -19,7 +19,11 @@
       (.phmCount (reduce #(pm/assoc %1 %2 %2) (hm/EMPTY) ["ns" "reclojure" "langaaaaaaa"])) => 3)
 
 (fact "porting of PersistentHashMap::main test method"
-       (let [f (slurp (io/resource "reclojure/lang/node.clj"))
+       (let [f (slurp (io/resource "test-words.txt"))
              words (distinct (remove s/blank? (s/split f #"\W")))
              res (reduce #(pm/assoc %1 %2 %2) (hm/EMPTY) words)]
          (.phmCount res) => 128))
+
+;(def f (slurp (io/resource "test-words.txt")))
+;(def words (distinct (remove s/blank? (s/split f #"\W"))))
+;(def res (reduce #(pm/assoc %1 %2 %2) (hm/EMPTY) words))

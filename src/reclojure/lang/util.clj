@@ -67,9 +67,9 @@
 
 (defn clone-and-set
   ([array idx obj]
-   (log/debug (format "clone-and-set 3 array '%s' idx '%s' obj '%s'" (aprint array) idx obj))
+   (log/debug (format "clone-and-set 3 array '%s' idx '%s' obj '%s'" array idx obj))
    (log/debug (format "want to store object of type %s into array of type %s" (type obj) (type (aclone array))))
    (doto (aclone array) (aset idx obj)))
   ([array idx a jdx b]
-   (log/debug (format "clone-and-set 5 array '%s' idx '%s' a '%s' jdx '%s' b '%s'" (aprint array) idx a jdx b))
+   (log/debug (format "clone-and-set 5 array '%s' idx '%s' a '%s' jdx '%s' b '%s'" array idx a jdx b))
    (doto (aclone array) (aset idx a) (aset jdx b))))

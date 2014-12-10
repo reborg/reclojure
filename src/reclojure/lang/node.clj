@@ -98,7 +98,7 @@
        (let [n (Integer/bitCount bitmap)]
          (log/debug (format "->bin-assoc (no edit) bitcount '%s'" n))
          (if (>= n 16)
-           (let [nodes (make-array BitmapIndexedNode 32)
+           (let [nodes (make-array Object 32)
                  jdx (util/mask hash shift)
                  noop (aset nodes jdx (node/assoc (EMPTY_BIN) (+ 5 shift) hash key val added-leaf))
                  j 0]
@@ -161,7 +161,7 @@
                (aset (inc (* 2 idx)) val))
              editable))
          (if (>= n 16)
-           (let [nodes (make-array BitmapIndexedNode 32)
+           (let [nodes (make-array Object 32)
                  jdx (util/mask hash shift)
                  noop (aset nodes jdx (->bin-assoc (EMPTY_BIN) edit (+ 5 shift) hash key val added-leaf))
                  j 0]
@@ -202,7 +202,7 @@
 
 (defn ->an-assoc
   ([node shift hash key val addedLeaf]
-   (log/debug (format "->an-assoc node '%s' shift '%s' hash '%s' key '%s' val '%s' addedLeaf '%s'" node shift hash key val addedLeaf))
+   (log/info (format "->an-assoc node '%s' shift '%s' hash '%s' key '%s' val '%s' addedLeaf '%s'" node shift hash key val addedLeaf))
    (let [idx (util/mask hash shift)
          node-idx (aget (.anArray node) idx)]
      (if (nil? node-idx)
@@ -210,12 +210,12 @@
              new-bin (node/assoc (EMPTY_BIN) (+ 5 shift) hash key val addedLeaf)
              cloned (util/clone-and-set (.anArray node) idx new-bin)]
          (ArrayNode. nil new-count cloned))
-       (let [n (node/assoc node (+ 5 shift) hash key val addedLeaf)]
+       (let [n (node/assoc node-idx (+ 5 shift) hash key val addedLeaf)]
          (if (= n node-idx)
            node
            (ArrayNode. nil (.anCount node) (util/clone-and-set (.anArray node) idx n)))))))
   ([node edit shift hash key val addedLeaf]
-   (log/debug (format "->an-assoc node '%s' edit '%s' shift '%s' hash '%s' key '%s' val '%s' addedLeaf '%s'" node edit shift hash key val addedLeaf))))
+   (throw (RuntimeException. "Please implement me."))))
 
 (defn ->hcn-assoc [node shift hash key val addedLeaf]
   (throw (RuntimeException. "implement me")))
