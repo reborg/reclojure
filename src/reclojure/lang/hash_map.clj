@@ -16,7 +16,7 @@
 
 (defn EMPTY []
   (log/debug (format "EMPTY phm"))
-  (PersistentHashMap. nil 0 nil false nil))
+  (PersistentHashMap. nil (int 0) nil false nil))
 
 (defn create-transient [phm]
   (log/debug (format "create-transient for phm"))

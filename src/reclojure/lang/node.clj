@@ -68,6 +68,7 @@
    (let [bit (bitpos hash shift)
          shift (unchecked-int shift)
          hash (unchecked-int hash)
+         _ (println (format "key '%s' bit '%s' bitmap '%s'" key bit (.binBitmap node)))
          idx (index node bit)
          bitmap (.binBitmap node)
          array (.binArray node)]
@@ -104,7 +105,7 @@
                  j 0]
              (for [i (range 32)
                    j (filter even? (range 32))]
-               (when (not (zero? (bit-and (unsigned-bit-shift-right bitmap i) 1)))
+               (when (not (zero? (bit-and (clojure.lang.Numbers/unsignedShiftRightInt bitmap i) 1)))
                  (if (nil? (aget array j))
                    (aset nodes i (aget array (inc j)))
                    (aset nodes i (node/assoc (EMPTY_BIN)
@@ -167,7 +168,7 @@
                  j 0]
              (for [i (range 32)
                    j (filter even? (range 32))]
-               (when (not (zero? (bit-and (unsigned-bit-shift-right bitmap i) 1)))
+               (when (not (zero? (bit-and (clojure.lang.Numbers/unsignedShiftRightInt bitmap i) 1)))
                  (if (nil? (aget array j))
                    (aset nodes i (aget array (inc j)))
                    (aset nodes i (node/assoc (EMPTY_BIN)

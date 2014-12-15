@@ -28,7 +28,7 @@
   (.hasheq o))
 
 (defn hasheq [o]
-  (int (cond
+  (unchecked-int (cond
          (nil? o) 0
          (satisfies? he/HashEq o) (dohasheq o)
          (instance? Number o) (nums/hasheq o)
