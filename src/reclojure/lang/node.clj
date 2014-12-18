@@ -14,7 +14,7 @@
 (defn EMPTY_BIN [] (BitmapIndexedNode. nil (int 0) (.toArray (java.util.Collections/emptyList))))
 
 (defn index [node bit]
-  (Integer/bitCount (bit-and (.binBitmap node) (- bit 1))))
+  (Integer/bitCount (bit-and (.binBitmap node) (unchecked-dec-int bit))))
 
 (defn bitpos [hash shift]
   (log/debug (format "bitpos hash '%s' shift '%s'" hash shift))
@@ -24,16 +24,16 @@
   (util/hasheq k))
 
 (defn create-node [shift key1 val1 key2hash key2 val2]
-(log/debug (format "create-node shift '%s' key1 '%s' val1 '%s' key2hash '%s' key2 '%s' val2 '%s'" shift key1 val1 key2hash key2 val2))
+  (log/info (format "create-node shift '%s' key1 '%s' val1 '%s' key2hash '%s' key2 '%s' val2 '%s'" shift key1 val1 key2hash key2 val2))
   (let [key1hash (hash key1)]
     (if (= key1hash key2hash)
       (HashCollisionNode. nil key1hash 2
-        (.toArray (doto
-                    (java.util.ArrayList.)
-                    (.add key1)
-                    (.add val1)
-                    (.add key2)
-                    (.add val2))))
+                          (.toArray (doto
+                                      (java.util.ArrayList.)
+                                      (.add key1)
+                                      (.add val1)
+                                      (.add key2)
+                                      (.add val2))))
       (let [added-leaf (Box. nil)
             edit (AtomicReference.)]
         (-> (EMPTY_BIN)
@@ -68,7 +68,6 @@
    (let [bit (bitpos hash shift)
          shift (unchecked-int shift)
          hash (unchecked-int hash)
-         _ (println (format "key '%s' bit '%s' bitmap '%s'" key bit (.binBitmap node)))
          idx (index node bit)
          bitmap (.binBitmap node)
          array (.binArray node)]
@@ -81,7 +80,7 @@
          (cond
            (nil? key-or-null)
            (let [n (->bin-assoc node (+ 5 shift) hash key val added-leaf)]
-             (if (= val-or-node n)
+             (if (identical? val-or-node n)
                node
                (BitmapIndexedNode. nil bitmap (util/clone-and-set array (inc (* 2 idx)) n))))
            (util/equiv key key-or-null)
@@ -203,7 +202,7 @@
 
 (defn ->an-assoc
   ([node shift hash key val addedLeaf]
-   (log/info (format "->an-assoc node '%s' shift '%s' hash '%s' key '%s' val '%s' addedLeaf '%s'" node shift hash key val addedLeaf))
+   (log/debug (format "->an-assoc node '%s' shift '%s' hash '%s' key '%s' val '%s' addedLeaf '%s'" node shift hash key val addedLeaf))
    (let [idx (util/mask hash shift)
          node-idx (aget (.anArray node) idx)]
      (if (nil? node-idx)
@@ -218,8 +217,13 @@
   ([node edit shift hash key val addedLeaf]
    (throw (RuntimeException. "Please implement me."))))
 
-(defn ->hcn-assoc [node shift hash key val addedLeaf]
-  (throw (RuntimeException. "implement me")))
+(defn ->hcn-assoc
+  ([node shift hash key val addedLeaf]
+   (log/debug (format "->hcn-assoc node '%s' shift '%s' hash '%s' key '%s' val '%s' addedLeaf '%s'" node shift hash key val addedLeaf))
+   (throw (RuntimeException. "implement me")))
+  ([node edit shift hash key val addedLeaf]
+   (log/debug (format "->hcn-assoc node '%s' edit '%s' shift '%s' hash '%s' key '%s' val '%s' addedLeaf '%s'" node (type edit) shift hash key val addedLeaf))
+   (throw (RuntimeException. "implement me"))))
 
 (extend BitmapIndexedNode
   node/Node
