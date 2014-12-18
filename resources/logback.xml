@@ -9,8 +9,9 @@
     </filter>
   </appender>
 
+  <!--logger name="reclojure.lang.hash-map" level="DEBUG" /-->
+
   <root level="ERROR">
-    <appender-ref ref="FILE" />
     <appender-ref ref="STDOUT" />
   </root>
 

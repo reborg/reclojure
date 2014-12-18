@@ -11,6 +11,7 @@
                  [org.slf4j/slf4j-api "1.7.5"]]
   ;;:repl-options {:init (do (set! *warn-on-reflection* true) (require 'midje.repl) (midje.repl/autotest))}
   :repl-options {:init (do (require 'midje.repl) (midje.repl/autotest))}
+  :main reclojure.lang.hash-map
   :profiles {:uberjar
              {:main some.core, :aot :all}
              :dev
