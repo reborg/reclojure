@@ -33,7 +33,7 @@ Clojure has a quite complicated Java codebase (along with the Clojure side of it
 * for all bitmap manipulation operations, use Numbers/static call directly
 * check all uses of aset, that after using it I'm correctly the returning the array. Even better get a macro to do te job of embedding that they way you want it, or use doto. Doto is the best.
 * evaluating if keeping java convention for defptorocol fn names, would prefer clj, but change after integration tests are all passing
-* now that INT coercion was put in right place, are those cast to INT still needed? Try remove once integration tests is working.
+* now that INT coercion was put in right place, are those cast to INT still needed? Try remove once integration tests is working. I.e. ->bin-assoc unchecked int stuff.
 
 ## License
 

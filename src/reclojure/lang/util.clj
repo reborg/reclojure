@@ -6,7 +6,6 @@
   (:import [clojure.lang Numbers Murmur3]
            [reclojure.lang.protocols.persistent_collection PersistentCollection]))
 
-
 (defn pcequiv [k1 k2]
   (log/debug (format "->pcequiv k1 '%s' k2 '%s'" k1 k2))
   (if (satisfies? k1 pc/PersistentCollection)
@@ -73,3 +72,16 @@
   ([array idx a jdx b]
    (log/debug (format "clone-and-set 5 array '%s' idx '%s' a '%s' jdx '%s' b '%s'" array idx a jdx b))
    (doto (aclone array) (aset idx a) (aset jdx b))))
+
+
+; workaround for intellij unable to obey conditional step debug
+;(def ks (atom []))
+;(swap! ks conj key)
+;(try
+;  (when (= (take 2 (reverse @ks)) '("licensees" "informs"))
+;    (throw (AccountExpiredException. "aa")))
+;  (catch AccountExpiredException e
+;    (print "")))
+
+; type printer for arrays compatible with Java output
+  ;(. (. System out) println (str "key " key " bitmap " (.binBitmap node) " bit " bit " types " (java.util.Arrays/toString (amap array idx ret (. (. (or (aget array idx) "") getClass) getSimpleName)))))

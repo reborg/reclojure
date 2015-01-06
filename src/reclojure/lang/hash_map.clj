@@ -112,7 +112,6 @@
   {:as-transient #'->phm-as-transient})
 
 (defn -main [& args]
-  (println "Test main")
   (let [f (slurp (clojure.java.io/resource "test-words.txt"))
         words (clojure.string/split f #"\W")]
     (reduce #(pm/assoc %1 %2 %2) (reclojure.lang.hash-map/EMPTY) words)))
