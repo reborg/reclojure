@@ -70,6 +70,7 @@
 
 (defn ->bin-assoc
   ([node shift hash key val added-leaf]
+   (log/trace node key (bitpos hash shift))
    (let [bit (bitpos hash shift)
          shift (unchecked-int shift)
          hash (unchecked-int hash)
