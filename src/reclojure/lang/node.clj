@@ -4,8 +4,7 @@
             [clojure.tools.logging :as log]
             [reclojure.lang.util :as util])
   (:import [reclojure.lang.box Box]
-           [java.util.concurrent.atomic AtomicReference]
-           (javax.security.auth.login AccountExpiredException))
+           [java.util.concurrent.atomic AtomicReference])
   (:refer-clojure :exclude [hash]))
 
 (util/defmutable BitmapIndexedNode [binEdit binBitmap binArray])
@@ -132,6 +131,8 @@
   ([node edit shift hash key val added-leaf]
    (log/debug (format "->bin-assoc node '%s' edit '%s' shift '%s' hash '%s' key '%s' val '%s' added-leaf '%s'" node edit shift hash key val added-leaf))
    (let [bit (bitpos hash shift)
+         shift (unchecked-int shift)
+         hash (unchecked-int hash)
          idx (index node bit)
          bitmap (.binBitmap node)
          array (.binArray node)]
@@ -141,8 +142,8 @@
              val-or-node (aget array (inc (* 2 idx)))]
          (cond
            (nil? key-or-null)
-           (let [n (->bin-assoc node (+ 5 shift) hash key val added-leaf)]
-             (if (= val-or-node n)
+           (let [n (->bin-assoc val-or-node (+ 5 shift) hash key val added-leaf)]
+             (if (identical? val-or-node n)
                node
                (edit-and-set node edit (inc (* 2 idx)) n)))
            (util/equiv key key-or-null)
@@ -193,7 +194,6 @@
            ; else <16
            :else
            (let [new-array (array-copy array (* 2 (+ 4 n)) (* 2 idx))]
-
              (doto new-array (aset (* 2 idx) key) (aset (inc (* 2 idx)) val))
              (.update added-leaf added-leaf)
              (System/arraycopy array (* 2 idx) new-array (* 2 (inc idx)) (* 2 (- n idx)))
