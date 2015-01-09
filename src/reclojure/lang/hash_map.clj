@@ -16,7 +16,7 @@
 
 (defn EMPTY []
   (log/debug (format "EMPTY phm"))
-  (PersistentHashMap. nil (int 0) nil false nil))
+  (PersistentHashMap. nil 0 nil false nil))
 
 (defn create-transient [phm]
   (log/debug (format "create-transient for phm"))
@@ -69,7 +69,7 @@
         (PersistentHashMap. (.phmMeta phm) (if has-null count (inc count)) root true v))
       (let [added-leaf (Box. nil)
             old-or-new (if (nil? root) (EMPTY_BIN) root)
-            new-root (node/assoc old-or-new (int 0) (hash k) k v added-leaf)]
+            new-root (node/assoc old-or-new 0 (hash k) k v added-leaf)]
         (if (identical? new-root root)
           phm
           (PersistentHashMap. (.phmMeta phm) (if (nil? @added-leaf) count (inc count)) new-root has-null null-value))))))
@@ -89,7 +89,7 @@
     (let [
           _ (.update (.thmLeafFlag thm) nil)
           empty-or-current (if (nil? (.thmRoot thm)) (EMPTY_BIN) (.thmRoot thm))
-          bin (node/assoc empty-or-current (.thmEdit thm) (int 0) (unchecked-int (hash key)) key val (.thmLeafFlag thm))]
+          bin (node/assoc empty-or-current (.thmEdit thm) 0 (unchecked-int (hash key)) key val (.thmLeafFlag thm))]
       (do
         (if (not (identical? bin (.thmRoot thm))) (.thmRoot! thm bin))
         (log/debug (format "->thm-do-assoc thmLeafFlag box '%s'" @(.thmLeafFlag thm)))

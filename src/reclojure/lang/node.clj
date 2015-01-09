@@ -11,7 +11,7 @@
 (util/defmutable ArrayNode [anEdit anCount anArray])
 (util/defmutable HashCollisionNode [hcnEdit hcnHash hcnCount hcnArray])
 
-(defn EMPTY_BIN [] (BitmapIndexedNode. nil (int 0) (.toArray (java.util.Collections/emptyList))))
+(defn EMPTY_BIN [] (BitmapIndexedNode. nil 0 (.toArray (java.util.Collections/emptyList))))
 
 (defn index [node bit]
   (Integer/bitCount (bit-and (.binBitmap node) (unchecked-dec-int bit))))
@@ -127,7 +127,7 @@
                  noop (.update added-leaf added-leaf)
                  noop (System/arraycopy array (* 2 idx) new-array (* 2 (inc idx)) (* 2 (- n idx)))]
              (log/debug (format "->bin-assoc (no edit, <16) bitmap '%s' bit '%s'" bitmap bit))
-             (BitmapIndexedNode. nil (int (bit-or bitmap bit)) new-array)))))))
+             (BitmapIndexedNode. nil (bit-or bitmap bit) new-array)))))))
   ([node edit shift hash key val added-leaf]
    (log/debug (format "->bin-assoc node '%s' edit '%s' shift '%s' hash '%s' key '%s' val '%s' added-leaf '%s'" node edit shift hash key val added-leaf))
    (let [bit (bitpos hash shift)
@@ -168,7 +168,7 @@
                (System/arraycopy (* 2 idx) (.binArray editable) (* 2 (inc idx)) (* 2 (- n idx)))
                (aset (* 2 idx) key)
                (aset (inc (* 2 idx)) val))
-             (.binBitmap! editable (int (bit-or (.binBitmap editable) bit)))
+             (.binBitmap! editable (bit-or (.binBitmap editable) bit))
              editable)
            (>= n 16)
            (let [nodes (make-array Object 32)
@@ -198,7 +198,7 @@
              (.update added-leaf added-leaf)
              (System/arraycopy array (* 2 idx) new-array (* 2 (inc idx)) (* 2 (- n idx)))
              (let [editable (ensure-editable node edit)]
-               (doto editable (.binArray! new-array) (.binBitmap! (int (bit-or (.binBitmap editable) bit))))
+               (doto editable (.binArray! new-array) (.binBitmap! (bit-or (.binBitmap editable) bit)))
                editable))))))))
 
 (defn ->an-assoc
