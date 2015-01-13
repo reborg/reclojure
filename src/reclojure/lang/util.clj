@@ -74,6 +74,17 @@
    (doto (aclone array) (aset idx a) (aset jdx b))))
 
 
+(defn- not-zero? [idx bitmap]
+  (-> (clojure.lang.Numbers/unsignedShiftRightInt bitmap idx)
+      (bit-and 1)
+      (zero?)
+      (not)))
+
+(defn shift-indeces [bitmap]
+  (map #(list %1 %2)
+       (filter #(not-zero? % bitmap) (range 32))
+       (filter even? (range 0 32))))
+
 ; workaround for intellij unable to obey conditional step debug
 ;(def ks (atom []))
 ;(swap! ks conj key)

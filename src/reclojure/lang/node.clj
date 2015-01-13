@@ -105,22 +105,19 @@
          (if (>= n 16)
            (let [nodes (make-array Object 32)
                  jdx (util/mask hash shift)
-                 noop (aset nodes jdx (node/assoc (EMPTY_BIN) (+ 5 shift) hash key val added-leaf))
-                 j (atom 0)] ;gross
-             (doseq [i (range 32)]
-               (let [shift-right (clojure.lang.Numbers/unsignedShiftRightInt bitmap i)
-                     and-one (bit-and shift-right 1)]
-                 (when (not (zero? and-one))
-                   (do
-                     (if (nil? (aget array @j))
-                       (aset nodes i (aget array (inc @j)))
-                       (aset nodes i (node/assoc (EMPTY_BIN)
-                                                 (+ shift 5)
-                                                 (clojure.core/hash (aget array @j))
-                                                 (aget array @j)
-                                                 (aget array (inc @j))
-                                                 added-leaf)))
-                     (swap! j #(+ 2 %))))))
+                 noop (aset nodes jdx (node/assoc (EMPTY_BIN) (+ 5 shift) hash key val added-leaf))]
+             (doall
+               (map
+                 (fn [[i j]]
+                   (if (nil? (aget array j))
+                     (aset nodes i (aget array (inc j)))
+                     (aset nodes i (node/assoc (EMPTY_BIN)
+                                               (+ shift 5)
+                                               (clojure.core/hash (aget array j))
+                                               (aget array j)
+                                               (aget array (inc j))
+                                               added-leaf))))
+                 (util/shift-indeces bitmap)))
              (ArrayNode. nil (inc n) nodes))
            ; else <16
            (let [new-array (doto (array-copy array (* 2 (inc n)) (* 2 idx)) (aset (* 2 idx) key) (aset (inc (* 2 idx)) val))
@@ -173,23 +170,20 @@
            (>= n 16)
            (let [nodes (make-array Object 32)
                  jdx (util/mask hash shift)
-                 noop (aset nodes jdx (node/assoc (EMPTY_BIN) edit (+ 5 shift) hash key val added-leaf))
-                 j (atom 0)] ;gross
-             (doseq [i (range 32)]
-               (let [shift-right (clojure.lang.Numbers/unsignedShiftRightInt bitmap i)
-                     and-one (bit-and shift-right 1)]
-                 (when (not (zero? and-one))
-                   (do
-                     (if (nil? (aget array @j))
-                       (aset nodes i (aget array (inc @j)))
-                       (aset nodes i (node/assoc (EMPTY_BIN)
-                                                 edit
-                                                 (+ shift 5)
-                                                 (clojure.core/hash (aget array @j))
-                                                 (aget array @j)
-                                                 (aget array (inc @j))
-                                                 added-leaf)))
-                     (swap! j #(+ 2 %))))))
+                 noop (aset nodes jdx (node/assoc (EMPTY_BIN) edit (+ 5 shift) hash key val added-leaf))]
+             (doall
+               (map
+                 (fn [[i j]]
+                   (if (nil? (aget array @j))
+                     (aset nodes i (aget array (inc @j)))
+                     (aset nodes i (node/assoc (EMPTY_BIN)
+                                               edit
+                                               (+ shift 5)
+                                               (clojure.core/hash (aget array @j))
+                                               (aget array @j)
+                                               (aget array (inc @j))
+                                               added-leaf))))
+                 (util/shift-indeces bitmap)))
              (ArrayNode. nil (inc n) nodes))
            ; else <16
            :else
