@@ -8,6 +8,6 @@
   (assoc [node shift hash key val addedLeaf]
          [node edit shift hash key val addedLeaf])
   (without [node shift hash key]
-    [node edit shift hash key removedLeaf])
+           [node edit shift hash key removedLeaf])
   (kvreduce [node f init])
   (fold [node combinef reducef fjtask fjfork fjjoin]))

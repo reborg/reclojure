@@ -85,6 +85,14 @@
        (filter #(not-zero? % bitmap) (range 32))
        (filter even? (range 0 32))))
 
+(defn remove-pair [array i]
+  (let [new-array (make-array Object (- (alength array) 2))]
+    (doto
+      array
+      (System/arraycopy 0 new-array 0 (* 2 i))
+      (System/arraycopy (* 2 (inc i)) new-array (* 2 i) (- (alength new-array) (* 2 i))))
+    new-array))
+
 ; workaround for intellij unable to obey conditional step debug
 ;(def ks (atom []))
 ;(swap! ks conj key)

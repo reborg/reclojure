@@ -9,7 +9,8 @@
             [reclojure.lang.protocols.persistent-map :as pm])
   (:refer-clojure :exclude [count meta])
   (:import [reclojure.lang.box Box]
-           [reclojure.lang.protocols.node Node]))
+           [reclojure.lang.protocols.node Node]
+           (javax.security.auth.login AccountExpiredException)))
 
 (u/defmutable PersistentHashMap [phmMeta phmCount phmRoot phmHasNull phmNullValue])
 (u/defmutable TransientHashMap [thmEdit thmRoot thmCount thmHasNull thmNullValue thmLeafFlag])
@@ -97,6 +98,20 @@
           (.thmCount! thm (inc (.thmCount thm))))
         thm))))
 
+(defn ->phm-without [phm key]
+  (try (throw (AccountExpiredException. "aa")) (catch AccountExpiredException e (print "")))
+  (cond (nil? key)
+        (if (.phmHasNull phm)
+          (PersistentHashMap. (.phmMeta phm) (dec (.phmCount phm)) (.phmRoot phm) false nil)
+          phm)
+        (nil? (.phmRoot phm))
+        phm
+        :else
+        (let [newroot (node/without (.phmRoot phm) 0 (hash key) key)]
+          (if (identical? newroot (.phmRoot phm))
+            phm
+            (PersistentHashMap. (.phmMeta phm) (dec (.phmCount phm)) newroot (.phmHasNull phm) (.phmHasNull phm))))))
+
 (extend TransientHashMap
   tm/TransientMap
   (assoc tm/TransientMapImpl
@@ -107,11 +122,15 @@
 (extend PersistentHashMap
   pm/PersistentMap
   (assoc pm/PersistentMapImpl
-         :assoc #'->phm-assoc)
+         :assoc #'->phm-assoc
+         :without #'->phm-without)
   ec/EditableCollection
   {:as-transient #'->phm-as-transient})
 
-(defn -main [& args]
-  (let [f (slurp (clojure.java.io/resource "test-words.txt"))
-        words (clojure.string/split f #"\W")]
-    (reduce #(pm/assoc %1 %2 %2) (reclojure.lang.hash-map/EMPTY) words)))
+;(defn -main [& args]
+  ; (let [f (slurp (clojure.java.io/resource "test-words.txt"))
+  ;       words (clojure.string/split f #"\W")
+  ;       bigmap (reduce #(pm/assoc %1 %2 %2) (reclojure.lang.hash-map/EMPTY) words)
+  ;       smallmap (reduce #(pm/assoc %1 %2 %2) (reclojure.lang.hash-map/EMPTY) ["w1" "w2" "sublicense"])]
+  ;   (pm/without bigmap "sublicense"))
+  ;)

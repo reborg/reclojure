@@ -67,6 +67,64 @@
      (doto (.binArray editable) (aset i a) (aset j b))
      editable)))
 
+(defn- edit-and-remove-pair [node edit bit i]
+  (if (identical? (.binBitmap node) bit)
+    nil
+    (let [editable (ensure-editable node edit)
+          array (.binArray editable)]
+      (do
+        (.binBitmap! edit (bit-xor (.binBitmap editable) bit))
+        (System/arraycopy array (* 2 (inc i)) array (* 2 i) (- (alength array) (* 2 (inc i))))
+        (aset array (- (alength array) 2) nil)
+        (aset array (- (alength array) 1) nil)
+        editable))))
+
+(defn ->bin-without
+  ([node shift hash key]
+   (let [bit (bitpos hash shift)
+         array (.binArray node)
+         bitmap (.binBitmap node)]
+     (if (zero? (bit-and bitmap bit))
+       node
+       (let [idx (index node bit)
+             key-or-null (aget array (* 2 idx))
+             val-or-node (aget array (inc (* 2 idx)))]
+         (cond (nil? key-or-null)
+               (let [n (node/without node (+ 5 shift) hash key)]
+                 (cond (identical? n val-or-node)
+                       node
+                       (not (nil? n))
+                       (BitmapIndexedNode. nil bitmap (util/clone-and-set array (inc (* 2 idx)) n))
+                       (identical? bitmap bit)
+                       nil
+                       :else
+                       (BitmapIndexedNode. nil (bit-xor bitmap bit) (util/remove-pair array idx))))
+               (util/equiv key key-or-null)
+               (BitmapIndexedNode. nil (bit-xor bitmap bit) (util/remove-pair array idx))
+               :else node)))))
+  ([node edit shift hash key removed-leaf]
+   (let [bit (bitpos hash shift)
+         array (.binArray node)
+         bitmap (.binBitmap node)]
+     (if (bit-and bitmap bit)
+       node
+       (let [idx (index node bit)
+             key-or-null (aget array (* 2 idx))
+             val-or-node (aget array (inc (* 2 idx)))]
+         (cond (nil? key-or-null)
+               (let [n (node/without node edit (+ 5 shift) hash key removed-leaf)]
+                 (cond (identical? n val-or-node)
+                       node
+                       (not (nil? n))
+                       (edit-and-set node edit (+ (* 2 idx) 1) n)
+                       (identical? bitmap bit)
+                       nil
+                       :else
+                       (edit-and-remove-pair node edit bit idx)))
+               (util/equiv key key-or-null)
+               (edit-and-remove-pair node edit bit idx)
+               :else node))))))
+
 (defn ->bin-assoc
   ([node shift hash key val added-leaf]
    (log/trace node key (bitpos hash shift))
@@ -220,9 +278,50 @@
    (log/debug (format "->hcn-assoc node '%s' edit '%s' shift '%s' hash '%s' key '%s' val '%s' addedLeaf '%s'" node (type edit) shift hash key val addedLeaf))
    (throw (RuntimeException. "implement me"))))
 
+(defn- an-pack [this edit idx]
+  (let [new-array (make-array Object (* 2 (dec (.anCount this))))
+        i (remove #(= % idx) (range 0 (alength (.anArray this))))
+        bitmap (reduce (fn [res idx] (clojure.lang.Numbers/shiftLeftInt (bit-or res 1) idx)) 0 i)
+        j (filter odd? (range))]
+        (doall (map (fn [[i j]]
+                      (when (not (nil? (aget (.anArray this) i)))
+                        (aset new-array j (aget (.anArray this) i)))) i j))))
+
+(defn ->an-without
+  ([this shift hash key]
+   (let [idx (util/mask hash shift)
+         node (aget (.anArray this) idx)]
+     (if (nil? node)
+       this
+       (let [n (node/without node (+ 5 shift) hash key)]
+         (if (identical? n node)
+           this
+           (if (nil? n)
+             (if (<= (.anCount this) 8)
+               (an-pack this nil idx)
+               (ArrayNode. nil (dec (.anCount this)) (util/clone-and-set (.anArray this) idx n)))
+             (ArrayNode. nil (.anCount this) (util/clone-and-set (.anArray this) idx n))))))))
+
+  ([this edit shift hash key removed-leaf]
+   (let [idx (util/mask hash shift)
+         node (aget (.anArray this) idx)]
+     (if (nil? node)
+       this
+       (let [n (node/without this edit (+ 5 shift) hash key removed-leaf)]
+         (if (identical? n node)
+           this
+           (if (nil? n)
+             (if (<= (.anCount this) 8)
+               (an-pack this edit idx)
+               (let [editable (edit-and-set this edit idx n)]
+                 (do
+                   (.binCount! editable (dec (.binCount editable)))
+                   editable))))))))))
+
 (extend BitmapIndexedNode
   node/Node
-  {:assoc #'->bin-assoc})
+  {:assoc #'->bin-assoc
+   :without #'->bin-without})
 
 (extend HashCollisionNode
   node/Node
@@ -230,4 +329,5 @@
 
 (extend ArrayNode
   node/Node
-  {:assoc #'->an-assoc})
+  {:assoc #'->an-assoc
+   :without #'->an-without})

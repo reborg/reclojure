@@ -10,7 +10,7 @@
          (fact "creation with one key-value pair"
                (.phmCount (hm/create-persistent arraym)) => 1)))
 
-(facts "trasient hash map"
+(facts "transient hash map"
        (fact "from a persistent hash map"
              (let [thm (hm/create-transient (hm/create-persistent (.toArray (java.util.Collections/emptyList))))]
               (.thmCount thm) => 0)))
@@ -42,6 +42,14 @@
                  (.phmCount res) => 544)
            (fact "diffing with original Java code trace"
                  (count (slurp (io/resource "java-bin-trace.txt"))) => (count @trace)))))
+
+(facts "removing"
+       (let [snapshot (reduce #(pm/assoc %1 %2 %2) (hm/EMPTY) ["ns" "reclojure" "langaaaaaaa"])]
+         (fact "should decrease in size"
+               (.phmCount (pm/without snapshot "ns")) => (dec (.phmCount snapshot))
+               (.phmCount snapshot) => 3)
+         (fact "removed element is gooone"
+               (into [] (.binArray (.phmRoot (pm/without snapshot "ns")))) => ["reclojure" "reclojure" "langaaaaaaa" "langaaaaaaa"])))
 
 ;(def f (slurp (io/resource "test-words.txt")))
 ;(def words (distinct (remove s/blank? (s/split f #"\W"))))
