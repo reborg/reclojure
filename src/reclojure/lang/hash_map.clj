@@ -99,7 +99,7 @@
         thm))))
 
 (defn ->phm-without [phm key]
-  (try (throw (AccountExpiredException. "aa")) (catch AccountExpiredException e (print "")))
+  ; (try (throw (AccountExpiredException. "aa")) (catch AccountExpiredException e (print "")))
   (cond (nil? key)
         (if (.phmHasNull phm)
           (PersistentHashMap. (.phmMeta phm) (dec (.phmCount phm)) (.phmRoot phm) false nil)

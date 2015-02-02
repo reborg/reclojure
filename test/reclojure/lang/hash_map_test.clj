@@ -31,25 +31,35 @@
                         " types " (map-simple-names array) "\n")]
     (swap! trace str next-trace)))
 
-(facts "structural and type verification"
-       (with-redefs [clojure.tools.logging/trace collect-trace]
-         (let [f (slurp (io/resource "test-words.txt"))
-               words (s/split f #"\W")
-               _ (require '[reclojure.lang.node] :reload) ; log/trace macro-exp need to happen after
-               _ (reset! trace "")
-               res (reduce #(pm/assoc %1 %2 %2) (hm/EMPTY) words)]
-           (fact "persistent hash contains right number of entries"
-                 (.phmCount res) => 544)
-           (fact "diffing with original Java code trace"
-                 (count (slurp (io/resource "java-bin-trace.txt"))) => (count @trace)))))
+    (facts "structural and type verification"
+(with-redefs [clojure.tools.logging/trace collect-trace]
+  (let [f (slurp (io/resource "test-words.txt"))
+        words (s/split f #"\W")
+        _ (require '[reclojure.lang.node] :reload) ; log/trace macro-exp need to happen after
+        _ (reset! trace "")
+        res (reduce #(pm/assoc %1 %2 %2) (hm/EMPTY) words)]
 
-(facts "removing"
-       (let [snapshot (reduce #(pm/assoc %1 %2 %2) (hm/EMPTY) ["ns" "reclojure" "langaaaaaaa"])]
-         (fact "should decrease in size"
-               (.phmCount (pm/without snapshot "ns")) => (dec (.phmCount snapshot))
-               (.phmCount snapshot) => 3)
-         (fact "removed element is gooone"
-               (into [] (.binArray (.phmRoot (pm/without snapshot "ns")))) => ["reclojure" "reclojure" "langaaaaaaa" "langaaaaaaa"])))
+    (fact "persistent hash contains right number of entries"
+          (.phmCount res) => 544)
+    (fact "diffing with original Java code trace"
+          (count (slurp (io/resource "java-bin-trace.txt"))) => (count @trace)
+          (slurp (io/resource "java-bin-trace.txt")) => @trace))))
+
+    (facts "removing"
+           (let [snapshot (reduce #(pm/assoc %1 %2 %2) (hm/EMPTY) ["ns" "reclojure" "langaaaaaaa"])]
+             (fact "should decrease in size"
+                   (.phmCount (pm/without snapshot "ns")) => (dec (.phmCount snapshot))
+                   (.phmCount snapshot) => 3)
+             (fact "removed element is gooone"
+                   (into [] (.binArray (.phmRoot (pm/without snapshot "ns")))) => ["reclojure" "reclojure" "langaaaaaaa" "langaaaaaaa"])))
+
+(fact "removing from big map until exhausted"
+      (let [f (slurp (io/resource "test-words.txt"))
+            words (s/split f #"\W")
+            res (reduce #(pm/assoc %1 %2 %2) (hm/EMPTY) words)
+            removed (reduce #(pm/without %1 %2) res (distinct words))]
+        (.phmCount res) => 544
+        (.phmCount removed) => 0))
 
 ;(def f (slurp (io/resource "test-words.txt")))
 ;(def words (distinct (remove s/blank? (s/split f #"\W"))))
