@@ -318,9 +318,40 @@
                    (.binCount! editable (dec (.binCount editable)))
                    editable))))))))))
 
+(defn ->an-find
+  ([this shift hash key]
+   (throw (RuntimeException. "an->find implement me")))
+  ([this shift hash key not-found]
+   (let [idx (util/mask hash shift)
+         node (aget (.anArray this) idx)]
+     (if (nil? node)
+       not-found
+       (node/find node (+ 5 shift) hash key not-found)))))
+
+(defn ->bin-find
+  ([this shift hash key]
+   (throw (RuntimeException. "bin->find implement me")))
+  ([this shift hash key not-found]
+   (let [bit (bitpos hash shift)
+         bitmap (.binBitmap this)
+         array (.binArray this)]
+     (if (zero? (bit-and bitmap bit))
+       not-found
+       (let [idx (index this bit)
+             key-or-null (aget array (* 2 idx))
+             val-or-node (aget array (inc (* 2 idx)))]
+         (cond
+           (nil? key-or-null)
+           (node/find val-or-node (+ 5 shift) hash key not-found)
+           (util/equiv key key-or-null)
+           val-or-node
+           :else
+           not-found))))))
+
 (extend BitmapIndexedNode
   node/Node
   {:assoc #'->bin-assoc
+   :find #'->bin-find
    :without #'->bin-without})
 
 (extend HashCollisionNode
@@ -330,4 +361,5 @@
 (extend ArrayNode
   node/Node
   {:assoc #'->an-assoc
+   :find #'->an-find
    :without #'->an-without})

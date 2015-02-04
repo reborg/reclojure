@@ -19,6 +19,8 @@
   (log/debug (format "EMPTY phm"))
   (PersistentHashMap. nil 0 nil false nil))
 
+(def NOT_FOUND (Object.))
+
 (defn create-transient [phm]
   (log/debug (format "create-transient for phm"))
   (TransientHashMap.
@@ -112,6 +114,13 @@
             phm
             (PersistentHashMap. (.phmMeta phm) (dec (.phmCount phm)) newroot (.phmHasNull phm) (.phmHasNull phm))))))
 
+(defn ->containsKey [this key]
+  (if (nil? key)
+    (.phmHasNull this)
+    (if (nil? (.phmRoot this))
+      false
+      (not (identical? (node/find (.phmRoot this) 0 (hash key) key NOT_FOUND) NOT_FOUND)))))
+
 (extend TransientHashMap
   tm/TransientMap
   (assoc tm/TransientMapImpl
@@ -123,6 +132,7 @@
   pm/PersistentMap
   (assoc pm/PersistentMapImpl
          :assoc #'->phm-assoc
+         :containsKey #'->containsKey
          :without #'->phm-without)
   ec/EditableCollection
   {:as-transient #'->phm-as-transient})
